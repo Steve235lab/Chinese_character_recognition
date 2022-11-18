@@ -1,7 +1,7 @@
 import os
 import torch
 import torch.nn as nn
-import torch.nn.functional as  F
+import torch.nn.functional as F
 import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset
@@ -10,16 +10,16 @@ import argparse
 
 parse = argparse.ArgumentParser(description='Params for training. ')
 
-parse.add_argument('--root', type=str, default='/home/chenyiran/character_rec/data', help='path to data set')
+parse.add_argument('--root', type=str, default='\\home\\chenyiran\\character_rec\\data', help='path to data set')
 parse.add_argument('--mode', type=str, default='train', choices=['train', 'validation', 'inference'])
-parse.add_argument('--log_path', type=str, default=os.path.abspath('.') + '/log.pth', help='dir of checkpoints')
+parse.add_argument('--log_path', type=str, default=os.path.abspath('.') + '\\log.pth', help='dir of checkpoints')
 
-parse.add_argument('--restore', type=bool, default=True, help='whether to restore checkpoints')
+parse.add_argument('--restore', type=bool, default=False, help='whether to restore checkpoints')
 
-parse.add_argument('--batch_size', type=int, default=16, help='size of mini-batch')
+parse.add_argument('--batch_size', type=int, default=64, help='size of mini-batch')
 parse.add_argument('--image_size', type=int, default=64, help='resize image')
 parse.add_argument('--epoch', type=int, default=100)
-parse.add_argument('--num_class', type=int, default=100, choices=range(10, 3755))
+parse.add_argument('--num_class', type=int, default=3755, choices=range(10, 3755))
 args = parse.parse_args()
 
 
@@ -30,11 +30,11 @@ class MyDataset(Dataset):
         labels = []
         with open(txt_path, 'r') as f:
             for line in f:
-                if int(line.split('/')[-2]) >= num_class:  # just get images of the first #num_class
+                if int(line.split('\\')[-2]) >= num_class:  # just get images of the first #num_class
                     break
                 line = line.strip('\n')
                 images.append(line)
-                labels.append(int(line.split('/')[-2]))
+                labels.append(int(line.split('\\')[-2]))
         self.images = images
         self.labels = labels
         self.transforms = transforms
@@ -112,12 +112,11 @@ class NetSmall(nn.Module):
 
 
 def train():
-
     transform = transforms.Compose([transforms.Resize((args.image_size, args.image_size)),
                                     transforms.Grayscale(),
                                     transforms.ToTensor()])
 
-    train_set = MyDataset(args.root + '/train.txt', num_class=args.num_class, transforms=transform)
+    train_set = MyDataset(args.root + '\\train.txt', num_class=args.num_class, transforms=transform)
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -131,7 +130,7 @@ def train():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    if args.restore:
+    if bool(args.restore):
         checkpoint = torch.load(args.log_path)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -140,6 +139,8 @@ def train():
     else:
         loss = 0.0
         epoch = 0
+    # loss = 0.0
+    # epoch = 0
 
     while epoch < args.epoch:
         running_loss = 0.0
@@ -176,7 +177,7 @@ def validation():
                                     transforms.Grayscale(),
                                     transforms.ToTensor()])
 
-    test_set = MyDataset(args.root + '/test.txt', num_class=args.num_class, transforms=transform)
+    test_set = MyDataset(args.root + '\\test.txt', num_class=args.num_class, transforms=transform)
     test_loader = DataLoader(test_set, batch_size=args.batch_size)
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -209,16 +210,16 @@ def inference():
                                     transforms.Grayscale(),
                                     transforms.ToTensor()])
 
-    f = open(args.root + '/test.txt')
+    f = open(args.root + '\\test.txt')
     num_line = sum(line.count('\n') for line in f)
     f.seek(0, 0)
-    line = int(torch.rand(1).data * num_line - 10) # -10 for '\n's are more than lines
+    line = int(torch.rand(1).data * num_line - 10)  # -10 for '\n's are more than lines
     while line > 0:
         f.readline()
         line -= 1
     img_path = f.readline().rstrip('\n')
     f.close()
-    label = int(img_path.split('/')[-2])
+    label = int(img_path.split('\\')[-2])
     print('label:\t%4d' % label)
     input = Image.open(img_path).convert('RGB')
     input = transform(input)
@@ -229,9 +230,8 @@ def inference():
     model.load_state_dict(checkpoint['model_state_dict'])
     output = model(input)
     _, pred = torch.max(output.data, 1)
-    
-    print('predict:\t%4d' % pred)
 
+    print('predict:\t%4d' % pred)
 
 
 def classes_txt(root, out_path, num_class=None):
@@ -252,7 +252,7 @@ def classes_txt(root, out_path, num_class=None):
 
     with open(out_path, 'r+') as f:
         try:
-            end = int(f.readlines()[-1].split('/')[-2]) + 1
+            end = int(f.readlines()[-1].split('\\')[-2]) + 1
         except:
             end = 0
         if end < num_class - 1:
@@ -266,8 +266,8 @@ def classes_txt(root, out_path, num_class=None):
 
 if __name__ == '__main__':
 
-    classes_txt(args.root + '/train', args.root + '/train.txt', num_class=args.num_class)
-    classes_txt(args.root + '/test', args.root + '/test.txt', num_class=args.num_class)
+    classes_txt(args.root + '\\train', args.root + '\\train.txt', num_class=args.num_class)
+    classes_txt(args.root + '\\test', args.root + '\\test.txt', num_class=args.num_class)
 
     if args.mode == 'train':
         train()
