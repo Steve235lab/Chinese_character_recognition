@@ -6,12 +6,13 @@ from torchvision import transforms
 import matplotlib.pyplot as plt
 import random
 
-from model import ConvNet
+# from model import ConvNet
+from ResNet_101 import ResNet101
 from hwdb import HWDB
 
 
 def predict(net, image, key_list) -> str:
-    outputs = net(image)
+    outputs = net.forward(image, 'cpu')
     # 取得分最高的那个类
     _, predicted = torch.max(outputs.data, 1)
     return key_list[predicted]
@@ -25,10 +26,10 @@ if __name__ == "__main__":
     num_classes = len(class_dict)
 
     # 加载模型与参数
-    net = ConvNet(num_classes)
+    net = ResNet101(num_classes)
     # if torch.cuda.is_available():
     #     net = net.cuda()
-    net.load_state_dict(torch.load('./checkpoints/handwriting_iter_019_3060ti.pth'))
+    net.load_state_dict(torch.load('./checkpoints/ResNet101_019_3060ti.pth'))
 
     # 输入并预测
     image_folder_dir = "./data/predict/"

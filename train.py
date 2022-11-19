@@ -11,16 +11,19 @@ from torchsummary import summary
 
 from hwdb import HWDB
 from model import ConvNet
+from ResNet_101 import ResNet101
+from ResNet_152 import ResNet152
 
 
-def valid(epoch, net, test_loarder, writer):
+def valid(epoch, net, test_loarder, writer, device='cuda:0'):
     print("epoch %d 开始验证..." % epoch)
     with torch.no_grad():
         correct = 0
         total = 0
         for images, labels in test_loarder:
-            images, labels = images.cuda(), labels.cuda()
-            outputs = net(images)
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = net.forward(images, device)
             # 取得分最高的那个类
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
@@ -32,7 +35,7 @@ def valid(epoch, net, test_loarder, writer):
         writer.add_scalar('valid_acc', acc, global_step=epoch)
 
 
-def train(epoch, net, criterion, optimizer, train_loader, writer, save_iter=100):
+def train(epoch, net, criterion, optimizer, train_loader, writer, save_iter=100, device='cuda:0'):
     print("epoch %d 开始训练..." % epoch)
     net.train()
     sum_loss = 0.0
@@ -43,9 +46,10 @@ def train(epoch, net, criterion, optimizer, train_loader, writer, save_iter=100)
         # 梯度清零
         optimizer.zero_grad()
         if torch.cuda.is_available():
-            inputs = inputs.cuda(0)
-            labels = labels.cuda(0)
-        outputs = net(inputs)
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+        # print(next(net.parameters()).device, inputs.device)   # 打印模型和输入数据分别位于哪个设备
+        outputs = net.forward(inputs, device)
         loss = criterion(outputs, labels)
         # 取得分最高的那个类
         _, predicted = torch.max(outputs.data, 1)
@@ -78,8 +82,11 @@ def train(epoch, net, criterion, optimizer, train_loader, writer, save_iter=100)
 if __name__ == "__main__":
     # 超参数
     epochs = 20
-    batch_size = 500
-    lr = 0.05
+    batch_size = 300
+    lr = 0.005
+    device = 'cuda:1'
+    check_point = './checkpoints/ResNet101_027_3060ti.pth'
+    # check_point = None
 
     data_path = r'data'
     log_path = r'logs/batch_{}_lr_{}'.format(batch_size, lr)
@@ -102,18 +109,20 @@ if __name__ == "__main__":
     print("测试集数据:", dataset.test_size)
     trainloader, testloader = dataset.get_loader(batch_size)
 
-    net = ConvNet(num_classes)
+    net = ResNet101(num_classes)
+    if check_point:
+        net.load_state_dict(torch.load(check_point))
     if torch.cuda.is_available():
-        net = net.cuda(0)
-    # net.load_state_dict(torch.load('checkpoints/handwriting_iter_004.pth'))
+        net.to(device)
 
     print('网络结构：\n')
-    summary(net, input_size=(3, 64, 64), device='cuda')
+    if device == 'cuda:0':
+        summary(net, input_size=(3, 64, 64), device='cuda')
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=lr)
     writer = SummaryWriter(log_path)
     for epoch in range(epochs):
-        train(epoch, net, criterion, optimizer, trainloader, writer=writer)
-        valid(epoch, net, testloader, writer=writer)
+        train(epoch, net, criterion, optimizer, trainloader, writer=writer, device=device)
+        valid(epoch, net, testloader, writer=writer, device=device)
         print("epoch%d 结束, 正在保存模型..." % epoch)
-        torch.save(net.state_dict(), save_path + 'handwriting_iter_%03d_3060ti.pth' % epoch)
+        torch.save(net.state_dict(), save_path + 'ResNet101_%03d_1660ti.pth' % (epoch+28))
